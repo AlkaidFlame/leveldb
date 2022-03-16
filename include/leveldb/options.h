@@ -158,7 +158,7 @@ struct LEVELDB_EXPORT ReadOptions {
   // (which must belong to the DB that is being read and which must
   // not have been released).  If "snapshot" is null, use an implicit
   // snapshot of the state at the beginning of this read operation.
-  const Snapshot* snapshot = nullptr;
+  const Snapshot* snapshot = nullptr;//alkaid 用途
 };
 
 // Options that control write operations

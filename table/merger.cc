@@ -11,7 +11,7 @@
 namespace leveldb {
 
 namespace {
-class MergingIterator : public Iterator {
+class MergingIterator : public Iterator {//alkaid 深度理解
  public:
   MergingIterator(const Comparator* comparator, Iterator** children, int n)
       : comparator_(comparator),

@@ -74,7 +74,7 @@ struct DBImpl::CompactionState {
   // will never have to service a snapshot below smallest_snapshot.
   // Therefore if we have seen a sequence number S <= smallest_snapshot,
   // we can drop all entries for the same key with sequence numbers < S.
-  SequenceNumber smallest_snapshot;
+  SequenceNumber smallest_snapshot;//alkaid 理解
 
   std::vector<Output> outputs;
 
@@ -159,7 +159,7 @@ DBImpl::~DBImpl() {
   mutex_.Unlock();
 
   if (db_lock_ != nullptr) {
-    env_->UnlockFile(db_lock_);
+    env_->UnlockFile(db_lock_);//alkaid 如何保证锁归属权属于当前线程
   }
 
   delete versions_;
@@ -182,7 +182,7 @@ Status DBImpl::NewDB() {
   VersionEdit new_db;
   new_db.SetComparatorName(user_comparator()->Name());
   new_db.SetLogNumber(0);
-  new_db.SetNextFile(2);
+  new_db.SetNextFile(2);//alkaid 数字选择缘由
   new_db.SetLastSequence(0);
 
   const std::string manifest = DescriptorFileName(dbname_, 1);
@@ -222,10 +222,10 @@ void DBImpl::MaybeIgnoreError(Status* s) const {
   }
 }
 
-void DBImpl::RemoveObsoleteFiles() {
+void DBImpl::RemoveObsoleteFiles() {//alkaid 锁逻辑
   mutex_.AssertHeld();
 
-  if (!bg_error_.ok()) {
+  if (!bg_error_.ok()) {//alkaid 注释理解
     // After a background error, we don't know whether a new version may
     // or may not have been committed, so we cannot safely garbage collect.
     return;
@@ -251,7 +251,7 @@ void DBImpl::RemoveObsoleteFiles() {
         case kDescriptorFile:
           // Keep my manifest file, and any newer incarnations'
           // (in case there is a race that allows other incarnations)
-          keep = (number >= versions_->ManifestFileNumber());
+          keep = (number >= versions_->ManifestFileNumber());//alkaid 注释理解
           break;
         case kTableFile:
           keep = (live.find(number) != live.end());
@@ -294,7 +294,7 @@ Status DBImpl::Recover(VersionEdit* edit, bool* save_manifest) {
 
   // Ignore error from CreateDir since the creation of the DB is
   // committed only when the descriptor is created, and this directory
-  // may already exist from a previous failed creation attempt.
+  // may already exist from a previous failed creation attempt.//alkaid 注释理解
   env_->CreateDir(dbname_);
   assert(db_lock_ == nullptr);
   Status s = env_->LockFile(LockFileName(dbname_), &db_lock_);
@@ -321,7 +321,7 @@ Status DBImpl::Recover(VersionEdit* edit, bool* save_manifest) {
     }
   }
 
-  s = versions_->Recover(save_manifest);
+  s = versions_->Recover(save_manifest);//alkaid 细节
   if (!s.ok()) {
     return s;
   }
@@ -329,11 +329,11 @@ Status DBImpl::Recover(VersionEdit* edit, bool* save_manifest) {
 
   // Recover from all newer log files than the ones named in the
   // descriptor (new log files may have been added by the previous
-  // incarnation without registering them in the descriptor).
+  // incarnation without registering them in the descriptor).//alkaid 括号意思
   //
   // Note that PrevLogNumber() is no longer used, but we pay
   // attention to it in case we are recovering a database
-  // produced by an older version of leveldb.
+  // produced by an older version of leveldb.//alkaid 注释意思
   const uint64_t min_log = versions_->LogNumber();
   const uint64_t prev_log = versions_->PrevLogNumber();
   std::vector<std::string> filenames;
@@ -372,11 +372,11 @@ Status DBImpl::Recover(VersionEdit* edit, bool* save_manifest) {
     // The previous incarnation may not have written any MANIFEST
     // records after allocating this log number.  So we manually
     // update the file number allocation counter in VersionSet.
-    versions_->MarkFileNumberUsed(logs[i]);
+    versions_->MarkFileNumberUsed(logs[i]);//alkaid 意义
   }
 
   if (versions_->LastSequence() < max_sequence) {
-    versions_->SetLastSequence(max_sequence);
+    versions_->SetLastSequence(max_sequence);//alkaid 意义
   }
 
   return Status::OK();
@@ -490,7 +490,7 @@ Status DBImpl::RecoverLogFile(uint64_t log_number, bool last_log,
     }
   }
 
-  if (mem != nullptr) {
+  if (mem != nullptr) {//alkaid 何时出现
     // mem did not get reused; compact it.
     if (status.ok()) {
       *save_manifest = true;
@@ -533,7 +533,7 @@ Status DBImpl::WriteLevel0Table(MemTable* mem, VersionEdit* edit,
     const Slice min_user_key = meta.smallest.user_key();
     const Slice max_user_key = meta.largest.user_key();
     if (base != nullptr) {
-      level = base->PickLevelForMemTableOutput(min_user_key, max_user_key);
+      level = base->PickLevelForMemTableOutput(min_user_key, max_user_key);//alkaid 细节
     }
     edit->AddFile(level, meta.number, meta.file_size, meta.smallest,
                   meta.largest);
@@ -563,7 +563,7 @@ void DBImpl::CompactMemTable() {
 
   // Replace immutable memtable with the generated Table
   if (s.ok()) {
-    edit.SetPrevLogNumber(0);
+    edit.SetPrevLogNumber(0);//alkaid 意义
     edit.SetLogNumber(logfile_number_);  // Earlier logs no longer needed
     s = versions_->LogAndApply(&edit, &mutex_);
   }
@@ -572,7 +572,7 @@ void DBImpl::CompactMemTable() {
     // Commit to the new state
     imm_->Unref();
     imm_ = nullptr;
-    has_imm_.store(false, std::memory_order_release);
+    has_imm_.store(false, std::memory_order_release);//alkaid 哪些线程会读取该变量？
     RemoveObsoleteFiles();
   } else {
     RecordBackgroundError(s);
@@ -629,7 +629,7 @@ void DBImpl::TEST_CompactRange(int level, const Slice* begin,
       background_work_finished_signal_.Wait();
     }
   }
-  if (manual_compaction_ == &manual) {
+  if (manual_compaction_ == &manual) {//alkaid 何时出现
     // Cancel my manual compaction since we aborted early for some reason.
     manual_compaction_ = nullptr;
   }
@@ -910,7 +910,7 @@ Status DBImpl::DoCompactionWork(CompactionState* compact) {
   Iterator* input = versions_->MakeInputIterator(compact->compaction);
 
   // Release mutex while we're actually doing the compaction work
-  mutex_.Unlock();
+  mutex_.Unlock();//alkaid 为什么可解锁
 
   input->SeekToFirst();
   Status status;
@@ -920,7 +920,7 @@ Status DBImpl::DoCompactionWork(CompactionState* compact) {
   SequenceNumber last_sequence_for_key = kMaxSequenceNumber;
   while (input->Valid() && !shutting_down_.load(std::memory_order_acquire)) {
     // Prioritize immutable compaction work
-    if (has_imm_.load(std::memory_order_relaxed)) {
+    if (has_imm_.load(std::memory_order_relaxed)) {//alkaid 内存模型
       const uint64_t imm_start = env_->NowMicros();
       mutex_.Lock();
       if (imm_ != nullptr) {
@@ -955,7 +955,7 @@ Status DBImpl::DoCompactionWork(CompactionState* compact) {
         // First occurrence of this user key
         current_user_key.assign(ikey.user_key.data(), ikey.user_key.size());
         has_current_user_key = true;
-        last_sequence_for_key = kMaxSequenceNumber;
+        last_sequence_for_key = kMaxSequenceNumber;//alkaid why?
       }
 
       if (last_sequence_for_key <= compact->smallest_snapshot) {
@@ -963,7 +963,7 @@ Status DBImpl::DoCompactionWork(CompactionState* compact) {
         drop = true;  // (A)
       } else if (ikey.type == kTypeDeletion &&
                  ikey.sequence <= compact->smallest_snapshot &&
-                 compact->compaction->IsBaseLevelForKey(ikey.user_key)) {
+                 compact->compaction->IsBaseLevelForKey(ikey.user_key)) {//alkaid 理解
         // For this user key:
         // (1) there is no data in higher levels
         // (2) data in lower levels will have larger sequence numbers
@@ -1036,7 +1036,7 @@ Status DBImpl::DoCompactionWork(CompactionState* compact) {
     stats.bytes_written += compact->outputs[i].file_size;
   }
 
-  mutex_.Lock();
+  mutex_.Lock();//alkaid when unlock?
   stats_[compact->compaction->level() + 1].Add(stats);
 
   if (status.ok()) {
@@ -1096,7 +1096,7 @@ Iterator* DBImpl::NewInternalIterator(const ReadOptions& options,
   IterState* cleanup = new IterState(&mutex_, mem_, imm_, versions_->current());
   internal_iter->RegisterCleanup(CleanupIteratorState, cleanup, nullptr);
 
-  *seed = ++seed_;
+  *seed = ++seed_;//alkaid 用途
   mutex_.Unlock();
   return internal_iter;
 }
@@ -1115,8 +1115,8 @@ int64_t DBImpl::TEST_MaxNextLevelOverlappingBytes() {
 Status DBImpl::Get(const ReadOptions& options, const Slice& key,
                    std::string* value) {
   Status s;
-  MutexLock l(&mutex_);
-  SequenceNumber snapshot;
+  MutexLock l(&mutex_);//alkaid 锁保护什么
+  SequenceNumber snapshot;//alkaid 理解snapshot
   if (options.snapshot != nullptr) {
     snapshot =
         static_cast<const SnapshotImpl*>(options.snapshot)->sequence_number();
@@ -1171,7 +1171,7 @@ Iterator* DBImpl::NewIterator(const ReadOptions& options) {
                        seed);
 }
 
-void DBImpl::RecordReadSample(Slice key) {
+void DBImpl::RecordReadSample(Slice key) {//alkaid 用途
   MutexLock l(&mutex_);
   if (versions_->current()->RecordReadSample(key)) {
     MaybeScheduleCompaction();
@@ -1225,7 +1225,7 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* updates) {
     // during this phase since &w is currently responsible for logging
     // and protects against concurrent loggers and concurrent writes
     // into mem_.
-    {
+    {//alkaid 理解注释
       mutex_.Unlock();
       status = log_->AddRecord(WriteBatchInternal::Contents(write_batch));
       bool sync_error = false;
@@ -1307,7 +1307,7 @@ WriteBatch* DBImpl::BuildBatchGroup(Writer** last_writer) {
       }
 
       // Append to *result
-      if (result == first->batch) {
+      if (result == first->batch) {//alkaid 理解
         // Switch to temporary batch instead of disturbing caller's batch
         result = tmp_batch_;
         assert(WriteBatchInternal::Count(result) == 0);
@@ -1348,7 +1348,7 @@ Status DBImpl::MakeRoomForWrite(bool force) {
                (mem_->ApproximateMemoryUsage() <= options_.write_buffer_size)) {
       // There is room in current memtable
       break;
-    } else if (imm_ != nullptr) {
+    } else if (imm_ != nullptr) {//alkaid 不需要加锁吗
       // We have filled up the current memtable, but the previous
       // one is still being compacted, so we wait.
       Log(options_.info_log, "Current memtable full; waiting...\n");
@@ -1364,7 +1364,7 @@ Status DBImpl::MakeRoomForWrite(bool force) {
       WritableFile* lfile = nullptr;
       s = env_->NewWritableFile(LogFileName(dbname_, new_log_number), &lfile);
       if (!s.ok()) {
-        // Avoid chewing through file number space in a tight loop.
+        // Avoid chewing through file number space in a tight loop.//alkaid 理解
         versions_->ReuseFileNumber(new_log_number);
         break;
       }
@@ -1479,7 +1479,7 @@ Status DB::Delete(const WriteOptions& opt, const Slice& key) {
 }
 
 DB::~DB() = default;
-
+//alkaid 流程熟记
 Status DB::Open(const Options& options, const std::string& dbname, DB** dbptr) {
   *dbptr = nullptr;
 
@@ -1505,9 +1505,9 @@ Status DB::Open(const Options& options, const std::string& dbname, DB** dbptr) {
     }
   }
   if (s.ok() && save_manifest) {
-    edit.SetPrevLogNumber(0);  // No older logs needed after recovery.
+    edit.SetPrevLogNumber(0);  // No older logs needed after recovery.//alkaid 理解
     edit.SetLogNumber(impl->logfile_number_);
-    s = impl->versions_->LogAndApply(&edit, &impl->mutex_);
+    s = impl->versions_->LogAndApply(&edit, &impl->mutex_);//alkaid 理解
   }
   if (s.ok()) {
     impl->RemoveObsoleteFiles();

@@ -59,8 +59,9 @@ char* Arena::AllocateNewBlock(size_t block_bytes) {
   char* result = new char[block_bytes];
   blocks_.push_back(result);
   memory_usage_.fetch_add(block_bytes + sizeof(char*),
-                          std::memory_order_relaxed);
+                          std::memory_order_relaxed);//alkaid 内存模型
   return result;
 }
 
 }  // namespace leveldb
+//alkaid 该类的线程安全？

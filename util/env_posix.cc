@@ -81,7 +81,7 @@ class Limiter {
   // Else return false.
   bool Acquire() {
     int old_acquires_allowed =
-        acquires_allowed_.fetch_sub(1, std::memory_order_relaxed);
+        acquires_allowed_.fetch_sub(1, std::memory_order_relaxed);//alkaid 为什么松散
 
     if (old_acquires_allowed > 0) return true;
 
@@ -91,14 +91,14 @@ class Limiter {
 
   // Release a resource acquired by a previous call to Acquire() that returned
   // true.
-  void Release() { acquires_allowed_.fetch_add(1, std::memory_order_relaxed); }
+  void Release() { acquires_allowed_.fetch_add(1, std::memory_order_relaxed); }//alkaid 为什么松散
 
  private:
   // The number of available resources.
   //
   // This is a counter and is not tied to the invariants of any other class, so
   // it can be operated on safely using std::memory_order_relaxed.
-  std::atomic<int> acquires_allowed_;
+  std::atomic<int> acquires_allowed_;//alkaid 为什么松散
 };
 
 // Implements sequential read access in a file using read().
@@ -465,7 +465,7 @@ class PosixFileLock : public FileLock {
 //
 // We maintain a separate set instead of relying on fcntl(F_SETLK) because
 // fcntl(F_SETLK) does not provide any protection against multiple uses from the
-// same process.
+// same process.//alkaid 理解注释
 //
 // Instances are thread-safe because all member data is guarded by a mutex.
 class PosixLockTable {
@@ -625,7 +625,7 @@ class PosixEnv : public Env {
     return Status::OK();
   }
 
-  Status LockFile(const std::string& filename, FileLock** lock) override {
+  Status LockFile(const std::string& filename, FileLock** lock) override {//alkaid 加锁细节
     *lock = nullptr;
 
     int fd = ::open(filename.c_str(), O_RDWR | O_CREAT | kOpenBaseFlags, 0644);
@@ -649,7 +649,7 @@ class PosixEnv : public Env {
     return Status::OK();
   }
 
-  Status UnlockFile(FileLock* lock) override {
+  Status UnlockFile(FileLock* lock) override {//alkaid 解锁细节
     PosixFileLock* posix_file_lock = static_cast<PosixFileLock*>(lock);
     if (LockOrUnlock(posix_file_lock->fd(), false) == -1) {
       return PosixError("unlock " + posix_file_lock->filename(), errno);

@@ -69,7 +69,7 @@ static inline const char* DecodeEntry(const char* p, const char* limit,
   }
 
   if (static_cast<uint32_t>(limit - p) < (*non_shared + *value_length)) {
-    return nullptr;
+    return nullptr;//alkaid 为什么会有imit - p不合法的情况产生？
   }
   return p;
 }

@@ -28,7 +28,7 @@ void AppendEscapedStringTo(std::string* str, const Slice& value) {
     } else {
       char buf[10];
       std::snprintf(buf, sizeof(buf), "\\x%02x",
-                    static_cast<unsigned int>(c) & 0xff);
+                    static_cast<unsigned int>(c) & 0xff);//alkaid 转换结果
       str->append(buf);
     }
   }

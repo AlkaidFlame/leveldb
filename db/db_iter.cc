@@ -116,7 +116,7 @@ class DBIter : public Iterator {
   Direction direction_;
   bool valid_;
   Random rnd_;
-  size_t bytes_until_read_sampling_;
+  size_t bytes_until_read_sampling_;//alkaid 用途
 };
 
 inline bool DBIter::ParseKey(ParsedInternalKey* ikey) {

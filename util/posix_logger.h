@@ -20,7 +20,7 @@
 #include "leveldb/env.h"
 
 namespace leveldb {
-
+//alkaid unread
 class PosixLogger final : public Logger {
  public:
   // Creates a logger that writes to the given file.

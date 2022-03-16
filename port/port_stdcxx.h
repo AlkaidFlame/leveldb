@@ -125,7 +125,7 @@ inline bool Snappy_Uncompress(const char* input, size_t length, char* output) {
   return false;
 #endif  // HAVE_SNAPPY
 }
-
+//alkaid 用途
 inline bool GetHeapProfile(void (*func)(void*, const char*, int), void* arg) {
   // Silence compiler warnings about unused arguments.
   (void)func;
